@@ -1,0 +1,14 @@
+---
+stacks:
+  - name: service-router
+    description: Service Router for home
+    units:
+      - name: haproxy
+        version: 1.0.0
+        dockerfile: ./haproxy/Dockerfile
+        ports:
+          - 80:80
+          - 443:443
+          - 1234:1234
+        volumes:
+          - /data/service-router/logs:/var/log
