@@ -1,0 +1,68 @@
+global
+  user        haproxy
+
+defaults
+  mode        http
+  log         global
+  log-format  [%t]\ from\ %ci:%cp\ to\ %si:%sp\ %ts\ %Tt
+  retries     3
+  option      httplog
+  option      dontlognull
+  option      http-server-close
+  option      forwardfor
+  timeout connect 3s
+  timeout client  5s
+  timeout server  5s
+
+listen stats :1234
+  stats enable
+  stats hide-version
+  stats realm Haproxy\ Statistics
+  stats uri /
+
+frontend default-http
+  bind            :80
+
+  acl             uchiwa_bound      hdr(host) -i monitor.asha.isa-geek.net
+  acl             uchiwa_bound      hdr(host) -i monitor.ash.mine.nu
+  acl             uchiwa_bound      hdr(host) -i monitor.apps.mine.nu
+  use_backend     uchiwa            if uchiwa_bound
+
+  acl             consul_bound      hdr(host) -i consul.asha.isa-geek.net
+  acl             consul_bound      hdr(host) -i consul.ash.mine.nu
+  acl             consul_bound      hdr(host) -i consul.apps.mine.nu
+  use_backend     consul            if consul_bound
+
+  acl             dokku_http_bound  hdr_end(host) -i ash.mine.nu
+  use_backend     dokku_http        if dokku_http_bound 
+
+  default_backend uchiwa
+
+frontend default-https
+  bind            :443
+  acl             uchiwa_bound      hdr(host) -i monitor.asha.isa-geek.net
+  acl             uchiwa_bound      hdr(host) -i monitor.ash.mine.nu
+  acl             uchiwa_bound      hdr(host) -i monitor.apps.mine.nu
+  use_backend     uchiwa            if uchiwa_bound
+  acl             dokku_http_bound  hdr_end(host) -i ash.mine.nu
+  use_backend     dokku_http        if dokku_http_bound 
+
+  default_backend uchiwa
+
+backend uchiwa
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk HEAD /{{range service "sensu.dashboard"}}
+  server {{.Node}} {{.Address}}:{{.Port}} check{{end}}
+
+backend consul
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk HEAD /{{range service "consul-server-8500"}}
+  server {{.Node}} {{.Address}}:{{.Port}} check{{end}}
+
+backend dokku_http
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk HEAD /{{range service "dokku"}}
+  server {{.Node}} {{.Address}}:{{.Port}} check{{end}}
