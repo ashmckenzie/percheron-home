@@ -1,12 +1,23 @@
 FROM gliderlabs/alpine
 MAINTAINER ash@the-rebellion.net
 
-RUN apk add --update haproxy
+RUN apk add --update bash tar openssl haproxy 
 
-ADD config/haproxy.cfg /etc/haproxy/haproxy.cfg
+RUN mkdir -p /usr/local/bin /app
+
+RUN wget https://github.com/chrismytton/shoreman/raw/master/shoreman.sh -O /usr/local/bin/shoreman
+RUN cd /usr/local/bin && wget https://github.com/hashicorp/consul-template/releases/download/v0.10.0/consul-template_0.10.0_linux_amd64.tar.gz -O - | tar --strip-components=1 -xzvf -
+
+ADD config/haproxy.cfg.ctmpl /app/haproxy.cfg.ctmpl
+ADD config/Procfile /app/Procfile
+ADD config/start /start
+
+RUN chmod 755 /start /usr/local/bin/shoreman
+
+WORKDIR /app
 
 EXPOSE 80 443 1234
 
-VOLUME [ "/var/log"]
+VOLUME [ "/var/log" ]
 
-CMD [ "/usr/sbin/haproxy", "-V", "-db", "-f", "/etc/haproxy/haproxy.cfg" ]
+ENTRYPOINT [ "/start" ]
