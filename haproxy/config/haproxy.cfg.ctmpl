@@ -33,10 +33,10 @@ frontend default-http
   acl             consul_bound      hdr(host) -i consul.apps.mine.nu
   use_backend     consul            if consul_bound
 
+  acl             dokku_http_bound  hdr_end(host) -i asha.isa-geek.net
+  acl             dokku_http_bound  hdr_end(host) -i apps.mine.nu
   acl             dokku_http_bound  hdr_end(host) -i ash.mine.nu
   use_backend     dokku_http        if dokku_http_bound 
-
-  default_backend uchiwa
 
 frontend default-https
   bind            :443
@@ -47,7 +47,6 @@ frontend default-https
   acl             dokku_http_bound  hdr_end(host) -i ash.mine.nu
   use_backend     dokku_http        if dokku_http_bound 
 
-  default_backend uchiwa
 
 backend uchiwa
   http-request  set-header X-Forwarded-Port %[dst_port]
@@ -64,5 +63,5 @@ backend consul
 backend dokku_http
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
-  option        httpchk HEAD /{{range service "dokku"}}
+  option        httpchk HEAD /{{range service "dokku-alt-80"}}
   server {{.Node}} {{.Address}}:{{.Port}} check{{end}}

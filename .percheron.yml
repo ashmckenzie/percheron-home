@@ -3,6 +3,20 @@ stacks:
   - name: service-router
     description: Service Router for home
     units:
+
+      # docker run -d --name=consul gliderlabs/consul-server -bootstrap -advertise 172.17.42.1
+      #- name: consul
+      #  version: 1.0.0
+      #  docker_image: gliderlabs/consul-server
+
+      #  start_args: -bootstrap -advertise 172.17.42.1
+
+      # docker run --rm=true --name=registrator --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:master -internal consul://consul.docker:8500
+      #- name: registrator
+      #  version: 1.0.0
+      #  docker_image: gliderlabs/consul-server
+      #  start_args: -bootstrap
+
       - name: haproxy
         version: 1.0.0
         dockerfile: ./haproxy/Dockerfile
@@ -12,3 +26,5 @@ stacks:
           - "1234:1234"
         volumes:
           - /data/service-router/logs:/var/log
+        #dependent_unit_names:
+        #  - consul
