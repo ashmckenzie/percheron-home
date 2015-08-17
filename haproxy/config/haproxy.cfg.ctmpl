@@ -4,7 +4,6 @@ global
 defaults
   mode        http
   log         global
-  log-format  [%t]\ from\ %ci:%cp\ to\ %si:%sp\ %ts\ %Tt
   retries     3
   option      httplog
   option      dontlognull
@@ -52,16 +51,16 @@ backend uchiwa
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
   option        httpchk HEAD /{{range service "sensu.dashboard"}}
-  server {{.Node}} {{.Address}}:{{.Port}} check{{end}}
+  server {{.Name}} {{.Address}}:{{.Port}} check{{end}}
 
 backend consul
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
   option        httpchk HEAD /{{range service "consul-server-8500"}}
-  server {{.Node}} {{.Address}}:{{.Port}} check{{end}}
+  server {{.Name}} {{.Address}}:{{.Port}} check{{end}}
 
 backend dokku_http
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
   option        httpchk HEAD /{{range service "dokku-alt-80"}}
-  server {{.Node}} {{.Address}}:{{.Port}} check{{end}}
+  server {{.Name}} {{.Address}}:{{.Port}} check{{end}}

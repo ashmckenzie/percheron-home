@@ -4,7 +4,6 @@ stacks:
     description: Gliderlabs goodness
     units:
 
-      # docker run -d --name resolvable --hostname resolvable --restart=always -v /var/run/docker.sock:/tmp/docker.sock -v /etc/resolv.conf:/tmp/resolv.conf gliderlabs/resolvable:master
       - name: resolvable
         version: 1.0.0
         docker_image: gliderlabs/resolvable:master
@@ -13,7 +12,6 @@ stacks:
           - /var/run/docker.sock:/tmp/docker.sock
           - /etc/resolv.conf:/tmp/resolv.conf
 
-      # docker run -d --name=consul gliderlabs/consul-server -bootstrap -advertise 172.17.42.1
       - name: consul
         version: 1.0.0
         docker_image: gliderlabs/consul-server
@@ -25,7 +23,6 @@ stacks:
         dependent_unit_names:
           - resolvable
 
-      # docker run --rm=true --name=registrator --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:master -internal consul://consul.docker:8500
       - name: registrator
         version: 1.0.0
         docker_image: gliderlabs/registrator:master
@@ -46,6 +43,7 @@ stacks:
       - name: haproxy
         version: 1.0.0
         dockerfile: ./haproxy/Dockerfile
+        privileged: true
         restart_policy: always
         ports:
           - "80:80"
