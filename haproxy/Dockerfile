@@ -1,7 +1,7 @@
 FROM gliderlabs/alpine
 MAINTAINER ash@the-rebellion.net
 
-RUN apk add --update bash tar openssl haproxy iptables
+RUN apk add --update coreutils bash tar openssl haproxy iptables
 
 RUN mkdir -p /usr/local/bin /app
 
