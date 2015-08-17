@@ -1,2 +1,2 @@
-haproxy_consul_template: /usr/local/bin/consul-template -consul=consul:8500 -template /app/haproxy.cfg.ctmpl:/etc/haproxy/haproxy.cfg
+haproxy_consul_template: /usr/local/bin/consul-template -consul=gliderlabs_consul:8500 -template /app/haproxy.cfg.ctmpl:/etc/haproxy/haproxy.cfg
 haproxy: sleep 5 ; /usr/sbin/haproxy -V -d -db -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid

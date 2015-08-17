@@ -1,30 +1,57 @@
 ---
 stacks:
-  - name: service-router
-    description: Service Router for home
+  - name: gliderlabs
+    description: Gliderlabs goodness
     units:
 
-      # docker run -d --name=consul gliderlabs/consul-server -bootstrap -advertise 172.17.42.1
-      #- name: consul
-      #  version: 1.0.0
-      #  docker_image: gliderlabs/consul-server
+      # docker run -d --name resolvable --hostname resolvable --restart=always -v /var/run/docker.sock:/tmp/docker.sock -v /etc/resolv.conf:/tmp/resolv.conf gliderlabs/resolvable:master
+      - name: resolvable
+        version: 1.0.0
+        docker_image: gliderlabs/resolvable:master
+        restart_policy: always
+        volumes:
+          - /var/run/docker.sock:/tmp/docker.sock
+          - /etc/resolv.conf:/tmp/resolv.conf
 
-      #  start_args: -bootstrap -advertise 172.17.42.1
+      # docker run -d --name=consul gliderlabs/consul-server -bootstrap -advertise 172.17.42.1
+      - name: consul
+        version: 1.0.0
+        docker_image: gliderlabs/consul-server
+        restart_policy: always
+        start_args:
+          - '-bootstrap'
+          - '-advertise'
+          - '172.17.42.1'
+        dependent_unit_names:
+          - resolvable
 
       # docker run --rm=true --name=registrator --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:master -internal consul://consul.docker:8500
-      #- name: registrator
-      #  version: 1.0.0
-      #  docker_image: gliderlabs/consul-server
-      #  start_args: -bootstrap
+      - name: registrator
+        version: 1.0.0
+        docker_image: gliderlabs/registrator:master
+        restart_policy: always
+        volumes:
+          - /var/run/docker.sock:/tmp/docker.sock
+        start_args:
+          - '-internal'
+          - 'consul://gliderlabs_consul.docker:8500'
+        dependent_unit_names:
+          - resolvable
+          - consul
+
+  - name: home
+    description: Service Router for home
+    units:
 
       - name: haproxy
         version: 1.0.0
         dockerfile: ./haproxy/Dockerfile
+        restart_policy: always
         ports:
           - "80:80"
           - "443:443"
           - "1234:1234"
         volumes:
           - /data/service-router/logs:/var/log
-        #dependent_unit_names:
-        #  - consul
+        dependent_unit_names:
+          - gliderlabs:consul
