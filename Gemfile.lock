@@ -1,8 +1,8 @@
 GIT
   remote: git://github.com/ashmckenzie/percheron.git
-  revision: 654d07a2cd42d618e798172136d08626b38b3fa6
+  revision: 342ae8a0305d2901d0907750f4b2496dffdb89c5
   specs:
-    percheron (0.7.16)
+    percheron (0.8.1)
       clamp (~> 1.0.0)
       docker-api (~> 1.22.0)
       hashie (~> 3.4.0)
@@ -53,4 +53,4 @@ DEPENDENCIES
   pry-byebug
 
 BUNDLED WITH
-   1.10.5
+   1.10.6
