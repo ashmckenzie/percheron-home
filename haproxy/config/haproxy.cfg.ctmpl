@@ -13,11 +13,21 @@ defaults
   timeout client  5s
   timeout server  5s
 
+userlist users
+  group admin users admin
+  user admin insecure-password <ADMIN_PASSWORD>
+  user guest insecure-password guest
+
 listen stats :1234
   stats enable
+  stats show-node
+  stats show-legends
   stats hide-version
-  stats realm Haproxy\ Statistics
   stats uri /
+  acl AuthOkay_ReadOnly http_auth(users)
+  acl AuthOkay_Admin http_auth_group(users) admin
+  stats http-request auth realm HAProxy-Statistics unless AuthOkay_ReadOnly
+  stats admin if AuthOkay_Admin
 
 frontend default-http
   bind            :80
@@ -31,8 +41,8 @@ frontend default-http
   acl             kibana_bound      hdr(host) -i kibana.apps.mine.nu
   use_backend     kibana            if kibana_bound
 
-  acl             es_bound      hdr(host) -i es.apps.mine.nu
-  use_backend     es            if es_bound
+  acl             es_bound          hdr(host) -i es.apps.mine.nu
+  use_backend     es                if es_bound
 
   acl             gitlab_bound      hdr(host) -i gitlab.apps.mine.nu
   use_backend     gitlab            if gitlab_bound
@@ -42,24 +52,32 @@ frontend default-http
 
 
 backend uchiwa
+  acl           auth_ok http_auth_group(users) admin
+  http-request  auth unless auth_ok
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
   option        httpchk HEAD /{{range service "sensu.dashboard"}}
   server {{.Name}} {{.Address}}:{{.Port}} check{{end}}
 
 backend consul
+  acl           auth_ok http_auth_group(users) admin
+  http-request  auth unless auth_ok
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
   option        httpchk HEAD /{{range service "consul-server-8500"}}
   server {{.Name}} {{.Address}}:{{.Port}} check{{end}}
 
 backend kibana
+  acl           auth_ok http_auth_group(users) admin
+  http-request  auth unless auth_ok
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
   option        httpchk HEAD /
   server elk elk:5601 check
 
 backend es
+  acl           auth_ok http_auth_group(users) admin
+  http-request  auth unless auth_ok
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
   option        httpchk HEAD /

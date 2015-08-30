@@ -1,4 +1,6 @@
 ---
+secrets_file: ./.secrets.yml
+
 stacks:
   - name: gliderlabs
     description: Gliderlabs goodness

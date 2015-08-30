@@ -13,6 +13,8 @@ ADD config/haproxy.cfg.ctmpl /app/haproxy.cfg.ctmpl
 ADD config/Procfile /app/Procfile
 ADD config/start /start
 
+RUN sed -i 's%<ADMIN_PASSWORD>%{{ secrets.haproxy.admin_password }}%' /app/haproxy.cfg.ctmpl
+
 RUN chmod 755 /start /usr/local/bin/shoreman /app/reload_haproxy.sh
 
 WORKDIR /app
