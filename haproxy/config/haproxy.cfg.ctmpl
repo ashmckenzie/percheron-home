@@ -5,20 +5,19 @@ defaults
   mode        http
   log         global
   retries     3
-  option      httplog
   option      dontlognull
-  option      http-server-close
-  option      forwardfor
-  timeout connect 3s
-  timeout client  5s
-  timeout server  5s
+  timeout connect 10s
+  timeout client  10s
+  timeout server  10s
+  maxconn 2048
 
 userlist users
   group admin users admin
   user admin insecure-password <ADMIN_PASSWORD>
   user guest insecure-password guest
 
-listen stats :1234
+listen stats
+  bind :1234
   stats enable
   stats show-node
   stats show-legends
@@ -29,37 +28,120 @@ listen stats :1234
   stats http-request auth realm HAProxy-Statistics unless AuthOkay_ReadOnly
   stats admin if AuthOkay_Admin
 
-frontend default-http
+listen sensu_rabbitmq
+  mode  tcp
+  bind  :5671
+  server sensu_rabbitmq sensu_rabbitmq:5671
+
+frontend front-https
+  bind            :443 ssl crt /etc/haproxy/ssl.pem
+  option          httplog
+  option          http-server-close
+  option          forwardfor
+
+  acl             sonarr_bound        hdr(host) -i sonarr.apps.mine.nu
+  use_backend     sonarr_http         if sonarr_bound
+
+  acl             transmission_bound    hdr(host) -i transmission.apps.mine.nu
+  use_backend     transmission_http     if transmission_bound
+
+  acl             registry_bound    hdr(host) -i registry.apps.mine.nu
+  use_backend     registry_http     if registry_bound
+
+  acl             grafana_bound    hdr(host) -i grafana.apps.mine.nu
+  use_backend     grafana_http     if grafana_bound
+
+  acl             prometheus_bound    hdr(host) -i prometheus.apps.mine.nu
+  use_backend     prometheus_http     if prometheus_bound
+
+  acl             influxdb_bound    hdr(host) -i influxdb.apps.mine.nu
+  use_backend     influxdb_http     if influxdb_bound
+
+  acl             flapjack_bound    hdr(host) -i flapjack.apps.mine.nu
+  use_backend     flapjack_http     if flapjack_bound
+
+  acl             flapjack_api_bound    hdr(host) -i flapjack-api.apps.mine.nu
+  use_backend     flapjack_api_http     if flapjack_api_bound
+
+
+frontend front-http
   bind            :80
+  option          httplog
+  option          http-server-close
+  option          forwardfor
+
+  acl             max_monitor_bound      hdr(host) -i max.apps.mine.nu
+  acl             max_monitor_bound      hdr(host) -i max-monitor.apps.mine.nu
+  use_backend     max_monitor_http       if max_monitor_bound
 
   acl             uchiwa_bound      hdr(host) -i monitor.apps.mine.nu
-  use_backend     uchiwa            if uchiwa_bound
+  use_backend     uchiwa_http       if uchiwa_bound
+
+  acl             sensu_bound       hdr(host) -i sensu.apps.mine.nu
+  use_backend     sensu_http        if sensu_bound
+
+  acl             rabbitmq_bound       hdr(host) -i rabbitmq.apps.mine.nu
+  use_backend     rabbitmq_http        if rabbitmq_bound
 
   acl             consul_bound      hdr(host) -i consul.apps.mine.nu
-  use_backend     consul            if consul_bound
+  use_backend     consul_http       if consul_bound
 
-  acl             kibana_bound      hdr(host) -i kibana.apps.mine.nu
-  use_backend     kibana            if kibana_bound
+  #acl             kibana_bound      hdr(host) -i kibana.apps.mine.nu
+  #use_backend     kibana_http       if kibana_bound
 
-  acl             es_bound          hdr(host) -i es.apps.mine.nu
-  use_backend     es                if es_bound
+  #acl             es_bound          hdr(host) -i es.apps.mine.nu
+  #use_backend     es_http           if es_bound
 
-  acl             gitlab_bound      hdr(host) -i gitlab.apps.mine.nu
-  use_backend     gitlab            if gitlab_bound
+  acl             sonarr_bound    hdr(host) -i sonarr.apps.mine.nu
+  redirect scheme https code 301    if sonarr_bound
+
+  acl             transmission_bound    hdr(host) -i transmission.apps.mine.nu
+  redirect scheme https code 301    if transmission_bound
+
+  acl             registry_bound    hdr(host) -i registry.apps.mine.nu
+  redirect scheme https code 301    if registry_bound
+
+  acl             grafana_bound    hdr(host) -i grafana.apps.mine.nu
+  redirect scheme https code 301    if grafana_bound
+
+  acl             prometheus_bound    hdr(host) -i prometheus.apps.mine.nu
+  redirect scheme https code 301    if prometheus_bound
+
+  acl             influxdb_bound    hdr(host) -i influxdb.apps.mine.nu
+  redirect scheme https code 301    if influxdb_bound
+
+  acl             flapjack_bound    hdr(host) -i flapjack.apps.mine.nu
+  redirect scheme https code 301    if flapjack_bound
 
   acl             dokku_http_bound  hdr_end(host) -i apps.mine.nu
   use_backend     dokku_http        if dokku_http_bound 
 
 
-backend uchiwa
-  acl           auth_ok http_auth_group(users) admin
-  http-request  auth unless auth_ok
+backend max_monitor_http
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk HEAD /
+  server raspberry_pi 10.1.1.2:9999
+
+backend uchiwa_http
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
   option        httpchk HEAD /{{range service "sensu.dashboard"}}
   server {{.Name}} {{.Address}}:{{.Port}} check{{end}}
 
-backend consul
+backend sensu_http
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk HEAD /info
+  server sensu_server sensu_server:4567
+
+backend rabbitmq_http
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk HEAD /
+  server sensu_rabbitmq sensu_rabbitmq:15672
+
+backend consul_http
   acl           auth_ok http_auth_group(users) admin
   http-request  auth unless auth_ok
   http-request  set-header X-Forwarded-Port %[dst_port]
@@ -67,30 +149,72 @@ backend consul
   option        httpchk HEAD /{{range service "consul-server-8500"}}
   server {{.Name}} {{.Address}}:{{.Port}} check{{end}}
 
-backend kibana
+#backend kibana_http
+#  acl           auth_ok http_auth_group(users) admin
+#  http-request  auth unless auth_ok
+#  http-request  set-header X-Forwarded-Port %[dst_port]
+#  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+#  option        httpchk GET /
+#  server elk_v2 elk_v2:5601 check
+
+#backend es_http
+#  acl           auth_ok http_auth_group(users) admin
+#  http-request  auth unless auth_ok
+#  http-request  set-header X-Forwarded-Port %[dst_port]
+#  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+#  option        httpchk HEAD /
+#  server elk_v2 elk_v2:9200 check
+
+backend sonarr_http
   acl           auth_ok http_auth_group(users) admin
   http-request  auth unless auth_ok
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
-  option        httpchk HEAD /
-  server elk elk:5601 check
+  #option        httpchk HEAD /
+  {{range service "sonarr-8989"}}
+  server {{.Name}} {{.Address}}:{{.Port}} check{{end}}
 
-backend es
-  acl           auth_ok http_auth_group(users) admin
-  http-request  auth unless auth_ok
+backend transmission_http
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
-  option        httpchk HEAD /
-  server elk elk:9200 check
-
-backend gitlab
-  http-request  set-header X-Forwarded-Port %[dst_port]
-  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
-  option        httpchk HEAD /
-  server gitlab gitlab_app:5000 check
+  option        httpchk GET /transmission/web/ HTTP/1.1\r\nAuthorization:\ Basic\ YWRtaW46dDBycjNudHo={{range service "transmission_app-9191"}}
+  server {{.Name}} {{.Address}}:{{.Port}} check{{end}}
 
 backend dokku_http
   http-request  set-header X-Forwarded-Port %[dst_port]
   http-request  add-header X-Forwarded-Proto https if { ssl_fc }
   option        httpchk HEAD /{{range service "dokku-alt-80"}}
   server {{.Name}} {{.Address}}:{{.Port}} check{{end}}
+
+backend grafana_http
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk GET /login
+  server grafana_server grafana_server:3000
+
+backend prometheus_http
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk GET /graph
+  server prometheus_server prometheus_server:9090
+
+backend influxdb_http
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk GET /ping
+  server influxdb_server influxdb_server:8086
+
+backend flapjack_http
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk GET /
+  server flapjack_server flapjack_server:3080
+
+backend flapjack_api_http
+  http-request  set-header X-Forwarded-Port %[dst_port]
+  http-request  add-header X-Forwarded-Proto https if { ssl_fc }
+  option        httpchk GET /
+  server flapjack_server flapjack_server:3081
+
+backend registry_http
+  {{range service "registry-5000"}}server {{.Name}} {{.Address}}:{{.Port}}{{end}}

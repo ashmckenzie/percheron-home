@@ -5,52 +5,43 @@ stacks:
   - name: gliderlabs
     description: Gliderlabs goodness
     units:
-
-      - name: resolvable
-        version: 1.0.0
-        docker_image: gliderlabs/resolvable:master
-        restart_policy: always
-        volumes:
-          - /var/run/docker.sock:/tmp/docker.sock
-          - /etc/resolv.conf:/tmp/resolv.conf
-
       - name: consul
         version: 1.0.0
         docker_image: gliderlabs/consul-server
-        restart_policy: always
+        network: isolated_nw
         start_args:
           - '-bootstrap'
           - '-advertise'
           - '172.17.42.1'
         dependent_unit_names:
-          - resolvable
+          #- resolvable
 
       - name: registrator
         version: 1.0.0
         docker_image: gliderlabs/registrator:master
-        restart_policy: always
+        network: isolated_nw
         volumes:
           - /var/run/docker.sock:/tmp/docker.sock
         start_args:
           - '-internal'
-          - 'consul://gliderlabs_consul.docker:8500'
+          - 'consul://gliderlabs_consul:8500'
         dependent_unit_names:
-          - resolvable
+          #- resolvable
           - consul
 
   - name: home
     description: Service Router for home
     units:
-
       - name: haproxy
         version: 1.0.0
+        network: isolated_nw
         dockerfile: ./haproxy/Dockerfile
         privileged: true
-        restart_policy: always
         ports:
           - "80:80"
           - "443:443"
           - "1234:1234"
+          - "5671:5671"
         volumes:
           - /data/service-router/logs:/var/log
         dependent_unit_names:
